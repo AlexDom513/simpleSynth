@@ -2,7 +2,7 @@ General Project Goals:
 
 -develop GUI including a keyboard, buttons for waveform selection, and volume
 -synthesize waveforms in realtime and output sounds to pc audio system
--testbed/prototype for future developments
+-testbed/prototype for future development
 
 
 Project Requirements:
