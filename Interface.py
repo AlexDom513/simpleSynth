@@ -1,6 +1,7 @@
 import sys
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+import time
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QPixmap, QIcon
 from PyQt5.QtWidgets import (
     QApplication,
     QVBoxLayout,
@@ -10,6 +11,7 @@ from PyQt5.QtWidgets import (
     QSlider,
     QLabel,
 )
+from AudioController import AudioController
 
 class Window(QWidget):
 
@@ -46,15 +48,21 @@ class Window(QWidget):
         font.setPointSize(40)
         font.setBold(True)
         titleLabel.setFont(font)
-
         dim = 100
+        reduction = 10
         menuLayout = QHBoxLayout()
         volumeSlider = QSlider(Qt.Horizontal)
         volumeSlider.setMaximumSize(dim, dim)
         sineSelect = QPushButton()
         sineSelect.setFixedSize(dim, dim)
+        sinePixmap = QPixmap("sine.jpg")
+        sineSelect.setIcon(QIcon(sinePixmap))
+        sineSelect.setIconSize(QSize(dim-reduction, dim-reduction))
         squareSelect = QPushButton()
         squareSelect.setFixedSize(dim, dim)
+        squarePixmap = QPixmap("square.jpg")
+        squareSelect.setIcon(QIcon(squarePixmap))
+        squareSelect.setIconSize(QSize(dim-reduction, dim-reduction))
         menuLayout.addWidget(titleLabel)
         menuLayout.addWidget(volumeSlider)
         menuLayout.addWidget(sineSelect)
@@ -67,3 +75,7 @@ if __name__ == '__main__':
     window = Window()
     window.show()
     app.exec_()
+    test = AudioController()
+    while test.stream.is_active():
+        time.sleep(0.1)
+    test.close()
