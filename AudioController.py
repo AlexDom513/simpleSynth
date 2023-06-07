@@ -33,18 +33,24 @@ class AudioController:
     def callback(self, in_data, frame_count, time_info, status):
         
         #generate audio signal
-        frequency = 1000
+        frequency = 500
         samples = np.arange(self.frameCount, self.frameCount + frame_count)
+        print(str(self.frameCount) + " : " + str(self.frameCount + frame_count))
         x = samples / self.sampleRate
         y =  0.1 * np.sin(2 * np.pi * frequency * x)
         data = y.astype(np.float32).tobytes()
 
         #suspend or continue the stream
         self.frameCount += frame_count
-        if (self.frameCount >= self.framesToPlay):
-            return (data, pyaudio.paComplete)
-        else:
-            return (data, pyaudio.paContinue)
+        #if (self.frameCount >= self.framesToPlay):
+            #return (data, pyaudio.paComplete)
+        #else:
+        return (data, pyaudio.paContinue)
+    
+    #idea: can use booleans to control whether or not paContinue or paComplete is used
+    #if a button on the synth is active, use paContinue, once released use paComplete
+
+    #cleanup code: more generalization/flexibility
     
     def close(self):
         self.stream.stop_stream()
