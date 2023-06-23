@@ -1,6 +1,4 @@
 import sys
-import time
-import threading
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from PyQt5.QtWidgets import (
@@ -17,76 +15,115 @@ from AudioController import AudioController
 class Window(QWidget):
 
     def __init__(self):
+    
+        #general setup
         super().__init__()
-        self.setWindowTitle("simpleSynth v1")
+        self.setWindowTitle("simpleSynth")
         self.setGeometry(0, 0, 720, 360)
+
+        #audio setup
+        self.audioController = AudioController()
+
+        #layout setup
         primaryLayout = QVBoxLayout()
         primaryLayout.addLayout(self.buildMenu())
         primaryLayout.addLayout(self.buildKeyboard())
         self.setLayout(primaryLayout)
-        self.audioController = AudioController()
         self.show()
 
+    #generate synth keyboard and attach freq value to every note
     def buildKeyboard(self):
+
+        #set fixed keyboard values
+        naturalLabels = ["C", "D", "E", "F", "G", "A", "B"]
+        naturalFreqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88]
+        sharpLabels = ["C#", "D#", "F#", "G#", "A#"]
+        sharpFreqs = [277.18, 311.13, 369.99, 415.30, 466.16]
+
+        #generate key (buttons) and assign values
         keyboardLayout = QHBoxLayout()
-        noteNames1 = ["C", "D", "E", "F", "G", "A", "B"]
-        noteFreqs1 = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88]
-        noteNames2 = ["C#", "D#", "F#", "G#", "A#"]
-        noteFreqs2 = [277.18, 311.13, 369.99, 415.30, 466.16]
-        count = 0
+        sharpCount = 0
         for i in range(7):
-            whiteKey = QPushButton(noteNames1[i])
+
+            #natural keys (white)
+            whiteKey = QPushButton(naturalLabels[i])
+            whiteKey.setProperty("freq", naturalFreqs[i])
+            whiteKey.setStyleSheet('background-color: white')
             whiteKey.setFixedSize(100, 200)
-            whiteKey.setProperty("freq", noteFreqs1[i])
             whiteKey.pressed.connect(self.keyPress)
             whiteKey.released.connect(self.keyRelease)
             keyboardLayout.addWidget(whiteKey)   
+            
+            #sharp key (black)
             if (i != 2 and i != 6):
-                blackKey = QPushButton(noteNames2[count])
-                blackKey.setProperty("freq", noteFreqs2[count])
-                blackKey.setFixedSize(40, 190)
+                blackKey = QPushButton(sharpLabels[sharpCount])
+                blackKey.setProperty("freq", sharpFreqs[sharpCount])
                 blackKey.setStyleSheet('background-color: grey')
+                blackKey.setFixedSize(40, 190)
                 blackKey.pressed.connect(self.keyPress)
                 blackKey.released.connect(self.keyRelease)
                 keyboardLayout.addWidget(blackKey)
-                count += 1
+                sharpCount += 1
+
         return keyboardLayout
     
     def buildMenu(self):
-        titleLabel = QLabel("simpleSynth")
+
+        #title setup
+        titleLabel = QLabel("simpleSynth v1")
         font = QFont()
         font.setPointSize(40)
         font.setBold(True)
         titleLabel.setFont(font)
+
+        #const
         dim = 100
         reduction = 10
-        menuLayout = QHBoxLayout()
-        volumeSlider = QSlider(Qt.Horizontal)
-        volumeSlider.setMaximumSize(dim, dim)
+
+        #volume setup
+        self.volumeSlider = QSlider(Qt.Horizontal)
+        self.volumeSlider.setMaximumSize(dim, dim)
+        self.volumeSlider.setMinimum(0)
+        self.volumeSlider.setMaximum(100)
+        self.volumeSlider.setValue(50)
+
+        #sine wave button setup
         sineSelect = QPushButton()
         sineSelect.setFixedSize(dim, dim)
         sinePixmap = QPixmap("sine.jpg")
         sineSelect.setIcon(QIcon(sinePixmap))
         sineSelect.setIconSize(QSize(dim-reduction, dim-reduction))
+        sineSelect.clicked.connect(self.sinePress)
+
+        #square wave button setup
         squareSelect = QPushButton()
         squareSelect.setFixedSize(dim, dim)
         squarePixmap = QPixmap("square.jpg")
         squareSelect.setIcon(QIcon(squarePixmap))
         squareSelect.setIconSize(QSize(dim-reduction, dim-reduction))
+        squareSelect.clicked.connect(self.squarePress)
+
+        #menu setup
+        menuLayout = QHBoxLayout()
         menuLayout.addWidget(titleLabel)
-        menuLayout.addWidget(volumeSlider)
+        menuLayout.addWidget(self.volumeSlider)
         menuLayout.addWidget(sineSelect)
         menuLayout.addWidget(squareSelect)
         menuLayout.setSpacing(5)
         return menuLayout
     
+    def sinePress(self):
+        self.audioController.waveform = "sine"
+
+    def squarePress(self):
+        self.audioController.waveform = "square"
+    
     def keyPress(self):
-        print("key pressed!")
         btn = self.sender()
+        self.audioController.volume = self.volumeSlider.value()
         self.audioController.startStream(btn.property("freq"))
 
     def keyRelease(self):
-        print("key released!")
         self.audioController.pauseStream()
 
 if __name__ == '__main__':

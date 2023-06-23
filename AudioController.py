@@ -1,77 +1,89 @@
-#utilize callback mode, in callback mode a callback function is called by PyAudio
-#whenver it needs more audio data to play, the callback function is responsible for
-#generating or processing audio data on the fly and providing it to PyAudio
-#https://www.youtube.com/watch?v=n2FKsPt83_A
-#https://healthyalgorithms.com/2013/08/22/dsp-in-python-active-noise-reduction-with-pyaudio/
+#AudioController produces audio using PyAudio, note whenever stream is paused, signal
+#is modified such that "tick" (caused by discontinuity) is reduced
+
+#fade in/out could be implemented over multiple callback blocks to lessen the impact of artifacts
 
 import pyaudio
 import numpy as np
+from scipy import signal
 import time
 
 class AudioController:
     
     def __init__(self):
-        print("initialization start!")
-        self.control = pyaudio.PyAudio()
-        self.sampleRate = 44100
-        self.duration = 5
-        self.enable = False
+
+        self.audio = pyaudio.PyAudio()
+        self.fs = 44100
+        self.buffer = 1024
         self.channels = 1
         self.frameCount = 0
-        self.count = 0
-        print("initialization complete!")
-        
+        self.volume = 50
+        self.waveform = "sine"
+        self.enable = False
+
+        #filter setup
+        fc = 500
+        w = fc / (self.fs / 2)
+        self.b, self.a = signal.butter(10, w, 'low')
+
+    def generateSine(self, x):
+        y = (self.volume / 100) * np.sin(2 * np.pi * self.freq * x)
+        return y
+    
+    def generateSquare(self, x):
+        y = (self.volume / 100) * np.sign(np.sin(2 * np.pi * self.freq * x))
+        return y
+
+    #PyAudio uses callback whenever new audio data is needed
     def callback(self, in_data, frame_count, time_info, status):
         
         #generate audio signal
         samples = np.arange(self.frameCount, self.frameCount + frame_count)
-        print(str(self.frameCount) + " : " + str(self.frameCount + frame_count))
-        x = samples / self.sampleRate
+        x = samples / self.fs
+        if (self.waveform == "sine"):
+            y = self.generateSine(x)
+        elif (self.waveform == "square"):
+            y = self.generateSquare(x)
 
-        y =  1 * np.sin(2 * np.pi * self.freq * x)
-        rate = 500
-        if (self.frameCount < 576 and self.enable):
-            print('trigger1')
-            z = 1 - np.exp(-rate*x)
-            y = y * z
-
-        data = y.astype(np.float32).tobytes()
+        #update frame count (part of callback function)
         self.frameCount += frame_count
         
-        #suspend or continue the stream
+        #continue or suspend stream
         if (self.enable):
-            #np.savetxt('varA' + str(self.count) + '.txt', y, fmt='%lf')
-            self.count += 1
+            data = y.astype(np.float32).tobytes()
             return (data, pyaudio.paContinue)
+        elif (self.waveform == "sine"):
+            index = np.where(abs(y) < 0.01)[0][0]
+            y = y[:index+1]
+            y = np.concatenate((y, np.zeros(len(samples) - len(y))))
+            y = signal.filtfilt(self.b, self.a, y)
+            data = y.astype(np.float32).tobytes()
+            return (data, pyaudio.paComplete)
         else:
-            k = np.exp(-(x / 4096)**5)
-            y = y * k
-            np.savetxt('varB.txt', y, fmt='%lf')
+            data = y.astype(np.float32).tobytes()
             return (data, pyaudio.paComplete)
         
     def startStream(self, freq):
         self.enable = True
         self.freq = freq
-        self.stream = self.control.open(format = pyaudio.paFloat32,
+        self.stream = self.audio.open(format = pyaudio.paFloat32,
                                            channels = self.channels,
-                                           rate = self.sampleRate,
-                                           frames_per_buffer = 4096,
+                                           rate = self.fs,
+                                           frames_per_buffer = self.buffer,
                                            output = True,
                                            stream_callback = self.callback)
         self.stream.start_stream()
 
-        #idea, use different threads to generate and play sound
-        #1st thread is generator, as long as a note is pressed generate the sound
-        #2nd thread is player, all generated sounds get dumped to the player
-
     def pauseStream(self):
         self.enable = False
-        time.sleep(.1)
+        time.sleep(0.1)
         self.frameCount = 0
         if (self.stream):
             self.stream.stop_stream()
+            self.stream.close()
     
     def closeStream(self):
-        self.stream.stop_stream()
+        if (self.stream):
+            self.stream.stop_stream()
         self.stream.close()
-        self.control.terminate()
+        self.audio.terminate()
