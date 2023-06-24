@@ -18,20 +18,32 @@ class AudioController:
         self.channels = 1
         self.frameCount = 0
         self.volume = 50
+        self.freqs = []
         self.waveform = "sine"
         self.enable = False
+
+        self.stream = self.audio.open(format = pyaudio.paFloat32,
+                                           channels = self.channels,
+                                           rate = self.fs,
+                                           frames_per_buffer = self.buffer,
+                                           output = True,
+                                           stream_callback = self.callback)
 
         #filter setup
         fc = 500
         w = fc / (self.fs / 2)
-        self.b, self.a = signal.butter(10, w, 'low')
+        self.b, self.a = signal.butter(10, w, "low")
 
     def generateSine(self, x):
-        y = (self.volume / 100) * np.sin(2 * np.pi * self.freq * x)
+        y = np.zeros(len(x))
+        for freq in self.freqs:
+            y += (self.volume / 300) * np.sin(2 * np.pi * freq * x)
         return y
     
     def generateSquare(self, x):
-        y = (self.volume / 100) * np.sign(np.sin(2 * np.pi * self.freq * x))
+        y = np.zeros(len(x))
+        for freq in self.freqs:
+            y += (self.volume / 300) * np.sign(np.sin(2 * np.pi * freq * x))
         return y
 
     #PyAudio uses callback whenever new audio data is needed
@@ -63,15 +75,8 @@ class AudioController:
             data = y.astype(np.float32).tobytes()
             return (data, pyaudio.paComplete)
         
-    def startStream(self, freq):
+    def startStream(self):
         self.enable = True
-        self.freq = freq
-        self.stream = self.audio.open(format = pyaudio.paFloat32,
-                                           channels = self.channels,
-                                           rate = self.fs,
-                                           frames_per_buffer = self.buffer,
-                                           output = True,
-                                           stream_callback = self.callback)
         self.stream.start_stream()
 
     def pauseStream(self):
@@ -80,7 +85,7 @@ class AudioController:
         self.frameCount = 0
         if (self.stream):
             self.stream.stop_stream()
-            self.stream.close()
+
     
     def closeStream(self):
         if (self.stream):
