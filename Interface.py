@@ -1,16 +1,11 @@
-#need to fix: toggle/active key press system, be aware
-#when the different streams are starting/stopping
-
 import sys
-from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QSize, QMutex
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPixmap, QIcon
 from PyQt5.QtWidgets import (
     QApplication,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QCheckBox,
     QWidget,
     QSlider,
     QLabel,
@@ -25,10 +20,14 @@ class Window(QWidget):
         super().__init__()
         self.setWindowTitle("simpleSynth")
         self.setGeometry(0, 0, 720, 360)
+        self.chordMode = False
+        self.keys = []
 
         #audio setup
         self.activeFreqs = []
         self.audioController = AudioController()
+        self.audioController.startStream()
+        self.audioController.pauseStream()
 
         #layout setup
         primaryLayout = QVBoxLayout()
@@ -56,11 +55,11 @@ class Window(QWidget):
             whiteKey.setProperty("freq", self.naturalFreqs[i])
             whiteKey.setStyleSheet("background-color: white")
             whiteKey.setFixedSize(100, 200)
+            whiteKey.pressed.connect(self.keyPress)
+            whiteKey.released.connect(self.keyRelease)
             whiteKey.clicked.connect(self.keyToggle)
-            #whiteKey.clicked.connect(self.keyPress)
-            #whiteKey.clicked.connect(self.keyRelease)
-            whiteKey.setCheckable(True)
-            keyboardLayout.addWidget(whiteKey)      
+            keyboardLayout.addWidget(whiteKey)
+            self.keys.append(whiteKey)
             
             #sharp key (black)
             if (i != 2 and i != 6):
@@ -68,11 +67,12 @@ class Window(QWidget):
                 blackKey.setProperty("freq", self.sharpFreqs[sharpCount])
                 blackKey.setStyleSheet("background-color: grey")
                 blackKey.setFixedSize(40, 190)
+                blackKey.pressed.connect(self.keyPress)
+                blackKey.released.connect(self.keyRelease)
                 blackKey.clicked.connect(self.keyToggle)
-                #blackKey.clicked.connect(self.keyPress)
-                #blackKey.clicked.connect(self.keyRelease)
-                blackKey.setCheckable(True)
+                self.keys.append(blackKey)
                 keyboardLayout.addWidget(blackKey)
+                self.keys.append(blackKey)
                 sharpCount += 1
 
         return keyboardLayout
@@ -139,17 +139,24 @@ class Window(QWidget):
 
     #select operating mode
     def modeClick(self):
-        pass
+        self.chordMode = not self.chordMode
+        if (self.chordMode):
+            for key in self.keys:
+                key.setCheckable(True)
+        else:
+            for key in self.keys:
+                key.setCheckable(False)
+                key.repaint()
+            self.activeFreqs.clear()
+            self.audioController.pauseStream()
     
     #click key on keyboard
     def keyToggle(self):
-        if (self.modeSelect.isChecked()):
-            print("chord mode")
+        if (self.chordMode):
             btn = self.sender()
             if (btn.isChecked()):
                 if (self.audioController.stream):
                     self.audioController.pauseStream()
-
                 self.audioController.volume = self.volumeSlider.value()
                 self.activeFreqs.append(btn.property("freq"))
                 self.audioController.freqs = self.activeFreqs
@@ -159,20 +166,19 @@ class Window(QWidget):
                 self.audioController.pauseStream()
                 self.audioController.startStream()
 
-    '''
+    #hold key on keyboard
     def keyPress(self):
-        if (not self.modeSelect.isChecked()):
-            print("single mode")
+        if (not self.chordMode):
             btn = self.sender()
             self.audioController.volume = self.volumeSlider.value()
             self.audioController.freqs = [btn.property("freq")]
             self.audioController.startStream()
 
-    #release clicked key on keyboard
+    #release key on keyboard
     def keyRelease(self):
-        if (not self.modeSelect.isChecked()):
+        if (not self.chordMode):
             self.audioController.pauseStream()
-    '''
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = Window()

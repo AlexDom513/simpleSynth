@@ -1,8 +1,6 @@
 #AudioController produces audio using PyAudio, note whenever stream is paused, signal
 #is modified such that "tick" (caused by discontinuity) is reduced
 
-#fade in/out could be implemented over multiple callback blocks to lessen the impact of artifacts
-
 import pyaudio
 import numpy as np
 from scipy import signal
@@ -21,7 +19,6 @@ class AudioController:
         self.freqs = []
         self.waveform = "sine"
         self.enable = False
-
         self.stream = self.audio.open(format = pyaudio.paFloat32,
                                            channels = self.channels,
                                            rate = self.fs,
@@ -37,13 +34,13 @@ class AudioController:
     def generateSine(self, x):
         y = np.zeros(len(x))
         for freq in self.freqs:
-            y += (self.volume / 300) * np.sin(2 * np.pi * freq * x)
+            y += (self.volume / 200) * np.sin(2 * np.pi * freq * x)
         return y
     
     def generateSquare(self, x):
         y = np.zeros(len(x))
         for freq in self.freqs:
-            y += (self.volume / 300) * np.sign(np.sin(2 * np.pi * freq * x))
+            y += (self.volume / 200) * np.sign(np.sin(2 * np.pi * freq * x))
         return y
 
     #PyAudio uses callback whenever new audio data is needed
@@ -86,7 +83,6 @@ class AudioController:
         if (self.stream):
             self.stream.stop_stream()
 
-    
     def closeStream(self):
         if (self.stream):
             self.stream.stop_stream()
